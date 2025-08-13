@@ -9,7 +9,7 @@ async def process_referral_rewards(user_id: int, amount: float, payment_id: int,
     try:
         import os
         
-        if payment_type not in ['topup', 'admin_topup']:
+        if payment_type not in ['topup', 'admin_topup', 'yookassa']:
             logger.debug(f"Skipping referral rewards for payment type: {payment_type}")
             return
         

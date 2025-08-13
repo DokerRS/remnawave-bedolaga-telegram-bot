@@ -19,6 +19,8 @@ help:
 	@echo "  db-restore - Restore database from backup"
 	@echo "  shell-bot - Open shell in bot container"
 	@echo "  shell-db  - Open shell in database container"
+	@echo "  webhook-status - Check webhook server status"
+	@echo "  webhook-test - Test webhook server endpoints"
 
 # Build all images
 build:
@@ -94,3 +96,17 @@ status:
 # View service resource usage
 stats:
 	docker stats --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}"
+
+# Check webhook server status
+webhook-status:
+	@echo "Checking webhook server status..."
+	@curl -s http://localhost:8000/webhook/yookassa/status | python3 -m json.tool 2>/dev/null || echo "Webhook server not accessible"
+
+# Test webhook server endpoints
+webhook-test:
+	@echo "Testing webhook server endpoints..."
+	@echo "Health check:"
+	@curl -s http://localhost:8000/health || echo "Health check failed"
+	@echo ""
+	@echo "Webhook status:"
+	@curl -s http://localhost:8000/webhook/yookassa/status || echo "Status check failed"

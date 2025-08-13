@@ -8,7 +8,9 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from lucky_game import lucky_game_router
 from stars_handlers import stars_router
+from yookassa_handlers import yookassa_router
 from autopay_service import AutoPayService
+from webhook_integration import YooKassaWebhookServer
 
 print("🚀 Запуск бота...")
 print(f"📍 Рабочая директория: {os.getcwd()}")
@@ -48,6 +50,7 @@ class BotApplication:
         self.dp = None
         self.monitor_service = None
         self.autopay_service = None
+        self.webhook_server = None
 
     async def _init_autopay_service(self):
         """Инициализирует сервис автоплатежей"""
@@ -81,6 +84,36 @@ class BotApplication:
             logger.error(f"❌ Failed to initialize autopay service: {e}", exc_info=True)
             logger.warning("⚠️ Continuing without autopay service")
             self.autopay_service = None
+    
+    async def _init_webhook_server(self):
+        """Инициализирует webhook сервер для YooKassa"""
+        try:
+            logger.info("🔧 Initializing YooKassa webhook server...")
+            
+            if not self.config.YOOKASSA_ENABLED:
+                logger.info("⚠️ YooKassa webhook server disabled (YOOKASSA_ENABLED=False)")
+                return
+            
+            if not self.config.YOOKASSA_SHOP_ID or not self.config.YOOKASSA_SECRET_KEY:
+                logger.warning("⚠️ YooKassa webhook server disabled (missing credentials)")
+                return
+            
+            # Создаем webhook сервер
+            self.webhook_server = YooKassaWebhookServer(self.config, self.db, self.bot)
+            
+            # Запускаем webhook сервер
+            await self.webhook_server.start()
+            
+            if self.webhook_server.is_running:
+                logger.info("✅ YooKassa webhook server started successfully")
+                logger.info(f"📊 Webhook server status: {self.webhook_server.get_status()}")
+            else:
+                logger.warning("⚠️ YooKassa webhook server created but not running")
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize YooKassa webhook server: {e}", exc_info=True)
+            logger.warning("⚠️ Continuing without YooKassa webhook server")
+            self.webhook_server = None
         
     async def initialize(self):
         
@@ -133,6 +166,7 @@ class BotApplication:
         
         await self._init_monitor_service()
         await self._init_autopay_service()
+        await self._init_webhook_server()
 
         if self.config.STARS_ENABLED:
             logger.info("✅ Telegram Stars пополнение включено")
@@ -223,6 +257,7 @@ class BotApplication:
         self.dp.include_router(admin_router)
         self.dp.include_router(lucky_game_router)
         self.dp.include_router(stars_router)
+        self.dp.include_router(yookassa_router)
         
     async def _init_monitor_service(self):
         try:
@@ -275,6 +310,12 @@ class BotApplication:
         else:
             logger.warning("⚠️  Реферальная система неактивна! Установите BOT_USERNAME")
         
+        if self.webhook_server and self.webhook_server.is_running:
+            logger.info(f"🔗 YooKassa webhook server активен на порту 8000")
+            logger.info(f"📡 Webhook URL: http://your-domain:8000/webhook/yookassa")
+        else:
+            logger.info("⚠️  YooKassa webhook server неактивен")
+        
         try:
             await self.dp.start_polling(self.bot)
         except Exception as e:
@@ -292,6 +333,13 @@ class BotApplication:
                 logger.info("Autopay service stopped")
             except Exception as e:
                 logger.error(f"Error stopping autopay service: {e}")
+        
+        if self.webhook_server:
+            try:
+                await self.webhook_server.stop()
+                logger.info("YooKassa webhook server stopped")
+            except Exception as e:
+                logger.error(f"Error stopping YooKassa webhook server: {e}")
         
         if self.monitor_service:
             try:

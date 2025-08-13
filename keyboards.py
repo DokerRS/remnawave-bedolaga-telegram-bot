@@ -53,13 +53,39 @@ def balance_keyboard(lang: str = 'ru') -> InlineKeyboardMarkup:
     ])
     return keyboard
 
-def topup_keyboard(lang: str = 'ru') -> InlineKeyboardMarkup:
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        # [InlineKeyboardButton(text="💳 " + t('topup_card', lang), callback_data="topup_card")],
-        [InlineKeyboardButton(text="👨‍💼 " + t('topup_support', lang), callback_data="topup_support")],
-        [InlineKeyboardButton(text="🔙 " + t('back', lang), callback_data="balance")]
-    ])
-    return keyboard
+def topup_keyboard(lang: str = 'ru', config=None) -> InlineKeyboardMarkup:
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Отладочная информация
+    logger.info(f"🔍 topup_keyboard: config={config is not None}")
+    if config:
+        logger.info(f"🔍 topup_keyboard: YOOKASSA_ENABLED={config.YOOKASSA_ENABLED}")
+        logger.info(f"🔍 topup_keyboard: YOOKASSA_SHOP_ID={'SET' if config.YOOKASSA_SHOP_ID else 'NOT SET'}")
+        logger.info(f"🔍 topup_keyboard: YOOKASSA_SECRET_KEY={'SET' if config.YOOKASSA_SECRET_KEY else 'NOT SET'}")
+    
+    buttons = []
+    
+    # Показываем кнопку YooKassa только если она включена и настроена
+    if config and config.YOOKASSA_ENABLED and config.YOOKASSA_SHOP_ID and config.YOOKASSA_SECRET_KEY:
+        logger.info("🔍 topup_keyboard: Adding YooKassa button")
+        buttons.append([InlineKeyboardButton(text="💳 " + t('topup_yookassa', lang), callback_data="topup_yookassa")])
+    else:
+        logger.info("🔍 topup_keyboard: YooKassa button NOT added")
+    
+    # Показываем кнопку Stars только если она включена
+    if config and config.STARS_ENABLED and config.STARS_RATES:
+        logger.info("🔍 topup_keyboard: Adding Stars button")
+        buttons.append([InlineKeyboardButton(text="⭐ " + t('topup_stars', lang), callback_data="topup_stars")])
+    
+    # Кнопка поддержки всегда доступна
+    buttons.append([InlineKeyboardButton(text="👨‍💼 " + t('topup_support', lang), callback_data="topup_support")])
+    
+    # Кнопка возврата
+    buttons.append([InlineKeyboardButton(text="🔙 " + t('back', lang), callback_data="balance")])
+    
+    logger.info(f"🔍 topup_keyboard: Total buttons: {len(buttons)}")
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def subscriptions_keyboard(subscriptions: List[dict], lang: str = 'ru') -> InlineKeyboardMarkup:
     buttons = []
@@ -713,13 +739,24 @@ def lucky_game_result_keyboard(lang: str = 'ru') -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")]
     ])
 
-def topup_keyboard(lang: str = 'ru') -> InlineKeyboardMarkup:
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="⭐ Telegram Stars", callback_data="topup_stars")],
-        [InlineKeyboardButton(text="👨‍💼 " + t('topup_support', lang), callback_data="topup_support")],
-        [InlineKeyboardButton(text="🔙 " + t('back', lang), callback_data="balance")]
-    ])
-    return keyboard
+def topup_keyboard(lang: str = 'ru', config=None) -> InlineKeyboardMarkup:
+    buttons = []
+    
+    # Показываем кнопку YooKassa только если она включена и настроена
+    if config and config.YOOKASSA_ENABLED and config.YOOKASSA_SHOP_ID and config.YOOKASSA_SECRET_KEY:
+        buttons.append([InlineKeyboardButton(text="💳 " + t('topup_yookassa', lang), callback_data="topup_yookassa")])
+    
+    # Показываем кнопку Stars только если она включена
+    if config and config.STARS_ENABLED and config.STARS_RATES:
+        buttons.append([InlineKeyboardButton(text="⭐ " + t('topup_stars', lang), callback_data="topup_stars")])
+    
+    # Кнопка поддержки всегда доступна
+    buttons.append([InlineKeyboardButton(text="👨‍💼 " + t('topup_support', lang), callback_data="topup_support")])
+    
+    # Кнопка возврата
+    buttons.append([InlineKeyboardButton(text="🔙 " + t('back', lang), callback_data="balance")])
+    
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def stars_topup_keyboard(stars_rates: Dict[int, float], lang: str = 'ru') -> InlineKeyboardMarkup:
     buttons = []
@@ -928,3 +965,9 @@ def autopay_statistics_keyboard(lang: str = 'ru') -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="🔙 Назад", callback_data="admin_autopay")]
     ])
     return keyboard
+
+def yookassa_payment_link_keyboard(payment_url: str, lang: str = 'ru') -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Оплатить", url=payment_url)],
+        [InlineKeyboardButton(text="🔙 " + t('back', lang), callback_data="balance")]
+    ])

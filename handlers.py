@@ -427,6 +427,11 @@ async def topup_balance_callback(callback: CallbackQuery, **kwargs):
         await callback.answer("❌ Ошибка пользователя")
         return
     
+    # Отладочная информация
+    logger.info(f"🔍 Debug: YOOKASSA_ENABLED={getattr(config, 'YOOKASSA_ENABLED', 'N/A') if config else 'N/A'}")
+    logger.info(f"🔍 Debug: YOOKASSA_SHOP_ID={getattr(config, 'YOOKASSA_SHOP_ID', 'N/A') if config else 'N/A'}")
+    logger.info(f"🔍 Debug: YOOKASSA_SECRET_KEY={'SET' if config and config.YOOKASSA_SECRET_KEY else 'NOT SET' if config else 'N/A'}")
+    
     stars_enabled = config and config.STARS_ENABLED and config.STARS_RATES
     
     text = t('topup_balance', user.language)
@@ -437,7 +442,7 @@ async def topup_balance_callback(callback: CallbackQuery, **kwargs):
     
     await callback.message.edit_text(
         text,
-        reply_markup=topup_keyboard(user.language),
+        reply_markup=topup_keyboard(user.language, config),
         parse_mode='Markdown'
     )
 

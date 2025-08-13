@@ -127,14 +127,18 @@ def format_payment_status(status: str, language: str = 'ru') -> str:
     status_map = {
         'ru': {
             'pending': 'Ожидает',
-            'completed': 'Завершен', 
+            'completed': 'Завершен',
+            'succeeded': 'Завершен',
             'cancelled': 'Отменен',
+            'canceled': 'Отменен',
             'failed': 'Ошибка'
         },
         'en': {
             'pending': 'Pending',
             'completed': 'Completed',
+            'succeeded': 'Completed',
             'cancelled': 'Cancelled',
+            'canceled': 'Cancelled',
             'failed': 'Failed'
         }
     }

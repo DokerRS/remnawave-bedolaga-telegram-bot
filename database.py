@@ -4,6 +4,7 @@ from sqlalchemy import BigInteger, String, Float, DateTime, Boolean, Text, Integ
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -133,6 +134,24 @@ class StarPayment(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
 
+class YooKassaPayment(Base):
+    __tablename__ = 'yookassa_payments'
+    
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    yookassa_payment_id: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    amount: Mapped[float] = mapped_column(Float)
+    currency: Mapped[str] = mapped_column(String(10), default='RUB')
+    description: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(50), default='pending')
+    payment_method: Mapped[Optional[str]] = mapped_column(String(50))
+    confirmation_url: Mapped[Optional[str]] = mapped_column(Text)
+    payment_metadata: Mapped[Optional[str]] = mapped_column(Text)  # JSON строка
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, onupdate=datetime.utcnow)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    cancelled_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+
 class ServiceRule(Base):
     __tablename__ = 'service_rules'
     
@@ -167,6 +186,7 @@ class Database:
         await self.migrate_referral_tables() 
         await self.migrate_star_payments_table()
         await self.migrate_autopay_fields()
+        await self.migrate_yookassa_payments_table()
 
     async def toggle_autopay(self, user_subscription_id: int, enabled: bool) -> bool:
         """Включает/выключает автоплатеж для подписки"""
@@ -2435,3 +2455,154 @@ class Database:
                     'trial_subscriptions': 0,
                     'imported_subscriptions': 0
                 }
+
+    # YooKassa Payment Methods
+    async def create_yookassa_payment(self, user_id: int, yookassa_payment_id: str, amount: float, 
+                                    description: str, payment_method: str = None, 
+                                    confirmation_url: str = None, payment_metadata: dict = None) -> YooKassaPayment:
+        """Создать платеж YooKassa"""
+        async with self.session_factory() as session:
+            try:
+                payment = YooKassaPayment(
+                    user_id=user_id,
+                    yookassa_payment_id=yookassa_payment_id,
+                    amount=amount,
+                    description=description,
+                    payment_method=payment_method,
+                    confirmation_url=confirmation_url,
+                    payment_metadata=json.dumps(payment_metadata) if payment_metadata else None
+                )
+                session.add(payment)
+                await session.commit()
+                await session.refresh(payment)
+                logger.info(f"Created YooKassa payment: {yookassa_payment_id} for user {user_id}")
+                return payment
+            except Exception as e:
+                logger.error(f"Error creating YooKassa payment: {e}")
+                await session.rollback()
+                raise
+
+    async def get_yookassa_payment_by_id(self, payment_id: int) -> Optional[YooKassaPayment]:
+        """Получить платеж YooKassa по ID"""
+        async with self.session_factory() as session:
+            try:
+                result = await session.execute(
+                    select(YooKassaPayment).where(YooKassaPayment.id == payment_id)
+                )
+                return result.scalar_one_or_none()
+            except Exception as e:
+                logger.error(f"Error getting YooKassa payment {payment_id}: {e}")
+                return None
+
+    async def get_yookassa_payment_by_yookassa_id(self, yookassa_payment_id: str) -> Optional[YooKassaPayment]:
+        """Получить платеж YooKassa по ID платежа в YooKassa"""
+        async with self.session_factory() as session:
+            try:
+                result = await session.execute(
+                    select(YooKassaPayment).where(YooKassaPayment.yookassa_payment_id == yookassa_payment_id)
+                )
+                return result.scalar_one_or_none()
+            except Exception as e:
+                logger.error(f"Error getting YooKassa payment by YooKassa ID {yookassa_payment_id}: {e}")
+                return None
+
+    async def update_yookassa_payment_status(self, payment_id: int, status: str, 
+                                          completed_at: datetime = None, cancelled_at: datetime = None) -> bool:
+        """Обновить статус платежа YooKassa"""
+        async with self.session_factory() as session:
+            try:
+                from sqlalchemy import update
+                update_data = {
+                    'status': status,
+                    'updated_at': datetime.utcnow()
+                }
+                
+                if completed_at:
+                    update_data['completed_at'] = completed_at
+                if cancelled_at:
+                    update_data['cancelled_at'] = cancelled_at
+                
+                result = await session.execute(
+                    update(YooKassaPayment)
+                    .where(YooKassaPayment.id == payment_id)
+                    .values(**update_data)
+                )
+                await session.commit()
+                return result.rowcount > 0
+            except Exception as e:
+                logger.error(f"Error updating YooKassa payment status {payment_id}: {e}")
+                await session.rollback()
+                return False
+
+    async def get_user_yookassa_payments(self, user_id: int, limit: int = 10) -> List[YooKassaPayment]:
+        """Получить платежи YooKassa пользователя"""
+        async with self.session_factory() as session:
+            try:
+                from sqlalchemy import select, desc
+                result = await session.execute(
+                    select(YooKassaPayment)
+                    .where(YooKassaPayment.user_id == user_id)
+                    .order_by(desc(YooKassaPayment.created_at))
+                    .limit(limit)
+                )
+                return list(result.scalars().all())
+            except Exception as e:
+                logger.error(f"Error getting user YooKassa payments for {user_id}: {e}")
+                return []
+
+    async def get_yookassa_payments_by_status(self, status: str, limit: int = 100) -> List[YooKassaPayment]:
+        """Получить платежи YooKassa по статусу"""
+        async with self.session_factory() as session:
+            try:
+                from sqlalchemy import select, desc
+                result = await session.execute(
+                    select(YooKassaPayment)
+                    .where(YooKassaPayment.status == status)
+                    .order_by(desc(YooKassaPayment.created_at))
+                    .limit(limit)
+                )
+                return list(result.scalars().all())
+            except Exception as e:
+                logger.error(f"Error getting YooKassa payments by status {status}: {e}")
+                return []
+
+    async def migrate_yookassa_payments_table(self):
+        """Создать таблицу платежей YooKassa если она не существует"""
+        try:
+            async with self.engine.begin() as conn:
+                try:
+                    await conn.execute(text("SELECT 1 FROM yookassa_payments LIMIT 1"))
+                    logger.info("yookassa_payments table already exists")
+                    return
+                except Exception:
+                    pass
+                
+                await conn.execute(text("""
+                    CREATE TABLE yookassa_payments (
+                        id SERIAL PRIMARY KEY,
+                        user_id BIGINT NOT NULL,
+                        yookassa_payment_id VARCHAR(255) UNIQUE NOT NULL,
+                        amount DOUBLE PRECISION NOT NULL,
+                        currency VARCHAR(10) DEFAULT 'RUB',
+                        description TEXT NOT NULL,
+                        status VARCHAR(50) DEFAULT 'pending',
+                        payment_method VARCHAR(50),
+                        confirmation_url TEXT,
+                        payment_metadata TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        completed_at TIMESTAMP,
+                        cancelled_at TIMESTAMP
+                    )
+                """))
+                
+                try:
+                    await conn.execute(text("CREATE INDEX idx_yookassa_payments_user ON yookassa_payments(user_id)"))
+                    await conn.execute(text("CREATE INDEX idx_yookassa_payments_status ON yookassa_payments(status)"))
+                    await conn.execute(text("CREATE INDEX idx_yookassa_payments_yookassa_id ON yookassa_payments(yookassa_payment_id)"))
+                except Exception as e:
+                    logger.warning(f"Some indexes may already exist: {e}")
+                
+                logger.info("Successfully created yookassa_payments table")
+        except Exception as e:
+            logger.error(f"Error creating yookassa_payments table: {e}")

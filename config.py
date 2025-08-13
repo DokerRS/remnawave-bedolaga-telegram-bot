@@ -39,6 +39,13 @@ class Config:
     
     STARS_ENABLED: bool = True
     STARS_RATES: Dict[int, float] = None  
+    
+    # YooKassa configuration
+    YOOKASSA_ENABLED: bool = False
+    YOOKASSA_SHOP_ID: str = ''
+    YOOKASSA_SECRET_KEY: str = ''
+    YOOKASSA_SKIP_SIGNATURE_VERIFICATION: bool = False
+    YOOKASSA_PAYMENT_METHODS: List[str] = None
 
 def load_config() -> Config:
     
@@ -90,6 +97,16 @@ def load_config() -> Config:
         
         return default_rates
     
+    def parse_yookassa_payment_methods() -> List[str]:
+        """Парсит доступные методы оплаты YooKassa из переменных окружения"""
+        methods_str = os.getenv('YOOKASSA_PAYMENT_METHODS', '')
+        if not methods_str:
+            # По умолчанию все доступные методы
+            return ['bank_card', 'sbp', 'yoo_money', 'cash']
+        
+        methods = [method.strip() for method in methods_str.split(',') if method.strip()]
+        return methods if methods else ['bank_card', 'sbp', 'yoo_money', 'cash']
+    
     return Config(
         BOT_TOKEN=os.getenv('BOT_TOKEN', ''),
         BOT_USERNAME=os.getenv('BOT_USERNAME', ''),
@@ -123,7 +140,12 @@ def load_config() -> Config:
         LUCKY_GAME_NUMBERS=get_int('LUCKY_GAME_NUMBERS', 30),
         LUCKY_GAME_WINNING_COUNT=get_int('LUCKY_GAME_WINNING_COUNT', 3),
         STARS_ENABLED=get_bool('STARS_ENABLED', True),
-        STARS_RATES=parse_stars_rates()
+        STARS_RATES=parse_stars_rates(),
+        YOOKASSA_ENABLED=get_bool('YOOKASSA_ENABLED', False),
+        YOOKASSA_SHOP_ID=os.getenv('YOOKASSA_SHOP_ID', ''),
+        YOOKASSA_SECRET_KEY=os.getenv('YOOKASSA_SECRET_KEY', ''),
+        YOOKASSA_SKIP_SIGNATURE_VERIFICATION=get_bool('YOOKASSA_SKIP_SIGNATURE_VERIFICATION', False),
+        YOOKASSA_PAYMENT_METHODS=parse_yookassa_payment_methods()
     )
 
 def debug_environment():

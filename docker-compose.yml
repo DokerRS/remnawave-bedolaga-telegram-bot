@@ -39,6 +39,8 @@ services:
     environment:
       # Override database URL to use PostgreSQL container
       DATABASE_URL: postgresql+asyncpg://remnawave_user:secure_password_123@postgres:5432/remnawave_bot
+    ports:
+      - "8000:8000"  # Webhook server port
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data

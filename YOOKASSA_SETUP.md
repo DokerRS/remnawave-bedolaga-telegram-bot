@@ -27,7 +27,6 @@
 
 - **Shop ID** - идентификатор магазина
 - **Secret Key** - секретный ключ для API
-- **Webhook Secret** - секрет для проверки webhook'ов
 
 ## Шаг 3: Настройка переменных окружения
 
@@ -38,7 +37,6 @@
 YOOKASSA_ENABLED=true
 YOOKASSA_SHOP_ID=your_shop_id_here
 YOOKASSA_SECRET_KEY=your_secret_key_here
-YOOKASSA_WEBHOOK_SECRET=your_webhook_secret_here
 YOOKASSA_PAYMENT_METHODS=bank_card,sbp,yoo_money,cash
 ```
 
@@ -47,7 +45,6 @@ YOOKASSA_PAYMENT_METHODS=bank_card,sbp,yoo_money,cash
 - `YOOKASSA_ENABLED` - включить/выключить интеграцию с YooKassa
 - `YOOKASSA_SHOP_ID` - ID магазина в YooKassa
 - `YOOKASSA_SECRET_KEY` - секретный ключ для API
-- `YOOKASSA_WEBHOOK_SECRET` - секрет для проверки webhook'ов
 - `YOOKASSA_PAYMENT_METHODS` - доступные способы оплаты (через запятую)
 
 ## Шаг 4: Настройка Webhook'ов
@@ -96,11 +93,6 @@ YOOKASSA_PAYMENT_METHODS=bank_card,sbp,yoo_money,cash
 
 - Проверьте правильность `YOOKASSA_SHOP_ID`
 - Убедитесь, что магазин активен в YooKassa
-
-### Ошибка "Invalid signature"
-
-- Проверьте правильность `YOOKASSA_WEBHOOK_SECRET`
-- Убедитесь, что webhook URL настроен правильно
 
 ### Платежи не создаются
 
